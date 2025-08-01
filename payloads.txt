@@ -1,0 +1,5 @@
+x|whoami
+id
+uname -a
+127.0.0.1;whoami
+127.0.0.1|id
