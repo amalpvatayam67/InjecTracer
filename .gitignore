@@ -1,0 +1,40 @@
+# Ignore compiled binaries and builds
+/env/interactsh-client
+env/interactsh
+blinddns-env
+
+# Ignore temporary files
+*.tmp
+*.log
+*.bak
+*.swp
+*.swo
+
+# macOS metadata
+.DS_Store
+
+# System junk
+Thumbs.db
+
+
+# Cookie jar and temporary logs
+cookie_jar.txt
+/tmp/*
+/var/tmp/*
+
+# IDE / editor specific
+.vscode/
+.idea/
+*.code-workspace
+
+# Python virtual environments (if any)
+env/
+venv/
+__pycache__/
+
+# OS specific
+ehthumbs.db
+Desktop.ini
+
+# Backup files
+*~
