@@ -16,7 +16,7 @@ if [[ ! -d interactsh ]]; then
 fi
 
 
-cd interactsh/cmd/client
+cd interactsh/cmd/interactsh-client
 go build -o ../../../env/interactsh-client .
 
 cd ../../../env
